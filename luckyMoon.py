@@ -169,7 +169,7 @@ ONGMagnitude = 1000000000
 LuckyDecimals = 8
 LuckyMagnitude = 100000000
 Magnitude = 1000000000000000000000000000000
-OddsMagnitude = 100
+OddsMagnitude = 10000
 
 ContractAddress = GetExecutingScriptHash()
 def Main(operation, args):
@@ -190,8 +190,8 @@ def Main(operation, args):
     if operation == "storeExplodePointHash":
         if len(args) != 1:
             return False
-        explodeNumber = args[0]
-        return storeExplodePointHash(explodeNumber)
+        explodePoint = args[0]
+        return storeExplodePointHash(explodePoint)
     if operation == "addDividendToLuckyHolders":
         if len(args) != 1:
             return False
@@ -204,9 +204,15 @@ def Main(operation, args):
     if operation == "endCurrentRound":
         if len(args) != 2:
             return False
-        explodeNumber = args[0]
+        explodePoint = args[0]
         effectiveEscapeAcctPointList = args[1]
-        return endCurrentRound(explodeNumber, effectiveEscapeAcctPointList)
+        return endCurrentRound(explodePoint, effectiveEscapeAcctPointList)
+    if operation == "withdrawEarn":
+        if len(args) != 2:
+            return False
+        toAcct = args[0]
+        ongAmount = args[1]
+        return withdrawEarn(toAcct, ongAmount)
     if operation == "migrateContract":
         if len(args) != 8:
             return False
@@ -227,6 +233,11 @@ def Main(operation, args):
         account = args[0]
         ongAmount = args[1]
         return bet(account, ongAmount)
+    if operation == "withdraw":
+        if len(args) != 1:
+            return False
+        account = args[0]
+        return withdraw(account)
     ######################## for Player to invoke End ###############
     ####################### Global Info Start #####################
     if operation == "getOdds":
@@ -254,11 +265,11 @@ def Main(operation, args):
             return False
         roundNumber = args[0]
         return getRoundEndTime(roundNumber)
-    if operation == "getExplodeNumberHash":
+    if operation == "getexplodePointHash":
         if len(args) != 1:
             return False
         roundNumber = args[0]
-        return getExplodeNumberHash(roundNumber)
+        return getexplodePointHash(roundNumber)
     ####################### Round Info End #####################
     ######################### For testing purpose Begin ##############
     if operation == "getOngBalanceOf":
@@ -347,17 +358,17 @@ def endBet():
     Notify(["endBet", currentRound])
     return True
 
-def endCurrentRound(explodeNumber, effectiveEscapeAcctPointList):
+def endCurrentRound(explodePoint, effectiveEscapeAcctPointList):
     RequireWitness(Admin)
     currentRound = getCurrentRound()
-    Require(sha256(explodeNumber) == getExplodeNumberHash(currentRound))
+    Require(sha256(explodePoint) == getexplodePointHash(currentRound))
     effectiveEscapeAcctList = []
     effectiveEscapePointList = []
     profitList = []
     for effectiveEscapeAcctPoint in effectiveEscapeAcctPointList:
         account = effectiveEscapeAcctPoint[0]
         escapePoint = effectiveEscapeAcctPoint[1]
-        Require(escapePoint <= explodeNumber)
+        Require(escapePoint <= explodePoint)
         effectiveEscapeAcctList.append(account)
         effectiveEscapePointList.append(escapePoint)
         odds = getOdds(escapePoint)
@@ -366,9 +377,15 @@ def endCurrentRound(explodeNumber, effectiveEscapeAcctPointList):
         Put(GetContext(), concatKey(ONG_BALANCE_KEY, account), Add(getOngBalanceOf(account), ongBalanceToBeAdd))
         profitList.append(Sub(ongBalanceToBeAdd, betBalance))
     Notify(["endCurrentRound", currentRound, effectiveEscapeAcctList, effectiveEscapeAcctPointList, profitList])
-    startNewRound()
     return True
 
+def withdrawEarn(toAcct, ongAmount):
+    RequireWitness(Admin)
+    currendRound = getCurrentRound()
+    Require(getRoundStatus(currendRound) == STATUS_OFF)
+    Require(_transferONGFromContact(toAcct, ongAmount))
+    Notify(["withdrawEarn", toAcct, ongAmount])
+    return True
 
 def migrateContract(code, needStorage, name, version, author, email, description, newContractHash):
     RequireWitness(Admin)
@@ -401,10 +418,24 @@ def bet(account, ongAmount):
     Notify(["bet", currentRound, account, ongAmount])
     return True
 
+def withdraw(account):
+    RequireWitness(account)
+    ongAmountToBeWithdraw = getOngBalanceOf(account)
+    Require(_transferONGFromContact(account, ongAmountToBeWithdraw))
+    Delete(GetContext(), concatKey(ONG_BALANCE_KEY, account))
+    Notify(["withdraw", account, ongAmountToBeWithdraw])
+    return True
 ######################## Methods for Players End ######################################
 ################## Global Info Start #######################
 def getOdds(escapePoint):
-    return Get(GetContext(), concatKey(TABLE_KEY, escapePoint))
+    odd1 = Get(GetContext(), concatKey(TABLE_KEY, escapePoint))
+    if escapePoint == 1:
+        return odd1
+    escapePoint2 = Sub(escapePoint, 1)
+    odd2 = Get(GetContext(), concatKey(TABLE_KEY, escapePoint2))
+    interval = Sub(odd2, odd1)
+    randomNumber = _getRandomNumber(interval)
+    return Add(odd1, randomNumber)
 
 def getLuckySupply():
     return Get(GetContext(), LUCKY_TOTAL_SUPPLY_KEY)
@@ -422,6 +453,7 @@ def getExplodePoint():
     randomNumber = abs(blockHash ^ txhash) % 1000
     explodePoint = Add(abs(randomNumber), 1)
     return explodePoint
+
 ################## Global Info End #######################
 
 
@@ -432,7 +464,7 @@ def getRoundStatus(roundNumber):
 def getRoundEndTime(roundNumber):
     return Get(GetContext(), concatKey(concatKey(ROUND_PREFIX, roundNumber), ROUND_END_BET_TIME_KEY))
 
-def getExplodeNumberHash(roundNumber):
+def getexplodePointHash(roundNumber):
     return Get(GetContext(), concatKey(concatKey(ROUND_PREFIX, roundNumber), ROUND_EXPLODE_NUM_HASH_KEY))
 ####################### Round Info End #####################
 
@@ -470,6 +502,13 @@ def updateDividend(account):
         Put(GetContext(), concatKey(DIVIDEND_BALANCE_KEY, account), getDividendBalanceOf(account))
         Put(GetContext(), concatKey(PROFIT_PER_LUCKY_FROM_KEY, account), profitPerLucky)
     return True
+
+def _getRandomNumber(interval):
+    blockHash = GetCurrentBlockHash()
+    tx = GetScriptContainer()
+    txhash = GetTransactionHash(tx)
+    randomNumber = abs(blockHash ^ txhash) % Sub(interval, 1)
+    return randomNumber
 
 def _transferONG(fromAcct, toAcct, amount):
     """
