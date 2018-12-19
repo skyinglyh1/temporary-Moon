@@ -193,7 +193,7 @@ def Main(operation, args):
         ongAmount = args[0]
         return addDividendToLuckyHolders(ongAmount)
     if operation == "startNewRound":
-        if len(args) != 1:
+        if len(args) != 2:
             return False
         explodePoint = args[0]
         salt = args[1]
@@ -201,7 +201,7 @@ def Main(operation, args):
     # if operation == "endBet":
     #     return endBet()
     if operation == "endCurrentRound":
-        if len(args) != 2:
+        if len(args) != 3:
             return False
         explodePoint = args[0]
         salt = args[1]
@@ -243,7 +243,7 @@ def Main(operation, args):
     if operation == "getOdds":
         if len(args) != 1:
             return False
-        escapePoint = args[1]
+        escapePoint = args[0]
         return getOdds(escapePoint)
     if operation == "getOddsForPlayer":
         if len(args) != 1:
@@ -315,7 +315,7 @@ def Main(operation, args):
         account = args[0]
         return getDividendBalanceOf(account)
     if operation == "getPlayerBetBalance":
-        if len(args) != 1:
+        if len(args) != 2:
             return False
         roundNumber = args[0]
         account = args[1]
