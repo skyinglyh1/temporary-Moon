@@ -187,11 +187,11 @@ def Main(operation, args):
             return False
         keyValueList = args[0]
         return setOddsTable(keyValueList)
-    if operation == "storeExplodeNumberHash":
+    if operation == "storeExplodePointHash":
         if len(args) != 1:
             return False
         explodeNumber = args[0]
-        return storeExplodeNumberHash(explodeNumber)
+        return storeExplodePointHash(explodeNumber)
     if operation == "addDividendToLuckyHolders":
         if len(args) != 1:
             return False
@@ -311,12 +311,12 @@ def setOddsTable(keyValueList):
     Notify(["setOddsTableSuccessful"])
     return True
 
-def storeExplodeNumberHash(explodeNumber):
+def storeExplodePointHash(explodePoint):
     RequireWitness(Admin)
     currentRound = getCurrentRound()
-    explodeNumberHash = sha256(explodeNumber)
-    Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), ROUND_EXPLODE_NUM_HASH_KEY), explodeNumberHash)
-    Notify(["explodeNumberHash", currentRound, explodeNumberHash])
+    explodePointHash = sha256(explodePoint)
+    Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), ROUND_EXPLODE_NUM_HASH_KEY), explodePointHash)
+    Notify(["explodePointHash", currentRound, explodePointHash])
     return True
 
 
