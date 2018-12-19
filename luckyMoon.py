@@ -141,6 +141,8 @@ def Sqrt(a):
 ONGAddress = bytearray(b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02')
 Admin = ToScriptHash('AQf4Mzu1YJrhz9f3aRkkwSm9n3qhXGSh4p')
 INIIT_KEY = "Init"
+TOTAL_ONG_KEY = "TotalOng"
+TOTAL_ONG_FOR_PLAYER = "TotalOngForPlayer"
 LUCKY_TOTAL_SUPPLY_KEY = "LuckySupply"
 LUCKY_BALANCE_KEY = "LuckyBalance"
 
@@ -207,6 +209,11 @@ def Main(operation, args):
         salt = args[1]
         effectiveEscapeAcctPointList = args[2]
         return endCurrentRound(explodePoint, salt, effectiveEscapeAcctPointList)
+    if operation == "adminInvest":
+        if len(args) != 1:
+            return False
+        ongAmount = args[0]
+        return adminInvest(ongAmount)
     if operation == "adminWithdraw":
         if len(args) != 2:
             return False
@@ -250,6 +257,12 @@ def Main(operation, args):
             return False
         escapePoint = args[0]
         return getOddsForPlayer(escapePoint)
+    if operation == "getTotalOng":
+        return getTotalOng()
+    if operation == "getTotalOngForPlayer":
+        return getTotalOngForPlayer()
+    if operation == "getTotalOngForAdmin":
+        return getTotalOngForAdmin()
     if operation == "getLuckySupply":
         return getLuckySupply()
     if operation == "getLuckyToOngRate":
@@ -351,9 +364,13 @@ def setOddsTable(keyValueList):
 
 def addDividendToLuckyHolders(ongAmount):
     RequireWitness(Admin)
+    luckySupply = getLuckySupply()
+    if luckySupply == 0:
+        Notify(["noLucky"])
+        return False
     profitPerLuckyToBeAdd = Div(Mul(ongAmount, Magnitude), getLuckySupply())
     Put(GetContext(), PROFIT_PER_LUCKY_KEY, profitPerLuckyToBeAdd)
-    Notify(["addOngToLuckyHolders", ongAmount])
+    Notify(["addDividendToLuckyHolders", ongAmount])
     return True
 
 def startNewRound(explodePoint, salt):
@@ -379,6 +396,7 @@ def endCurrentRound(explodePoint, salt, effectiveEscapeAcctPointList):
     Require(hash == getRoundExplodePointHash(currentRound))
     Put(GetContext(), concatKey(ROUND_EXPLODE_NUM_KEY, currentRound), explodePoint)
     effectiveEscapeAcctPointOddsProfitList = []
+    totalOngToBeAdd = 0
     for effectiveEscapeAcctPoint in effectiveEscapeAcctPointList:
         account = effectiveEscapeAcctPoint[0]
         escapePoint = effectiveEscapeAcctPoint[1]
@@ -386,6 +404,7 @@ def endCurrentRound(explodePoint, salt, effectiveEscapeAcctPointList):
         odds = getOddsForPlayer(escapePoint)
         betBalance = getPlayerBetBalance(currentRound, account)
         ongBalanceToBeAdd = Div(Mul(betBalance, odds), OddsMagnitude)
+        totalOngToBeAdd = Add(totalOngToBeAdd, ongBalanceToBeAdd)
         effectiveEscapeAcctPointOddsProfit = []
         effectiveEscapeAcctPointOddsProfit.append(account)
         effectiveEscapeAcctPointOddsProfit.append(escapePoint)
@@ -395,12 +414,22 @@ def endCurrentRound(explodePoint, salt, effectiveEscapeAcctPointList):
         Put(GetContext(), concatKey(ONG_BALANCE_KEY, account), Add(getOngBalanceOf(account), ongBalanceToBeAdd))
     Notify(["endCurrentRound", currentRound, explodePoint, effectiveEscapeAcctPointOddsProfitList])
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), ROUND_STATUS_KEY), STATUS_OFF)
+    Put(GetContext(), TOTAL_ONG_FOR_PLAYER, Add(getTotalOngForPlayer(), totalOngToBeAdd))
+    return True
+
+def adminInvest(ongAmount):
+    RequireWitness(Admin)
+    Require(_transferONG(Admin, ContractAddress, ongAmount))
+    Put(GetContext(), TOTAL_ONG_KEY, Add(getTotalOng(), ongAmount))
+    Notify(["adminInvest", ongAmount])
     return True
 
 def adminWithdraw(toAcct, ongAmount):
     RequireWitness(Admin)
     currendRound = getCurrentRound()
     Require(getRoundStatus(currendRound) == STATUS_OFF)
+    Require(ongAmount < Sub(getTotalOng(), getTotalOngForPlayer()))
+    Put(GetContext(), TOTAL_ONG_KEY, Sub(getTotalOng(), ongAmount))
     Require(_transferONGFromContact(toAcct, ongAmount))
     Notify(["adminWithdraw", toAcct, ongAmount])
     return True
@@ -428,6 +457,7 @@ def bet(account, ongAmount):
     Require(getRoundStatus(currentRound) == STATUS_ON)
     Require(getRoundBetStatus(currentRound))
     Require(_transferONG(account, ContractAddress, ongAmount))
+    Put(GetContext(), TOTAL_ONG_KEY, Add(getTotalOng(), ongAmount))
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), concatKey(ROUND_PLAYER_BET_BALANCE_KEY, account)), Add(getPlayerBetBalance(currentRound, account), ongAmount))
     # roundPlayersList = getRoundPlayersList(currentRound)
     # if not _checkIsInRoundPlayersList(account, roundPlayersList):
@@ -463,6 +493,15 @@ def getOddsForPlayer(escapePoint):
         return oddH
     randomNumber = _getRandomNumber(interval)
     return Add(oddH, randomNumber)
+
+def getTotalOng():
+    return Get(GetContext(), TOTAL_ONG_KEY)
+
+def getTotalOngForPlayer():
+    return Get(GetContext(), TOTAL_ONG_FOR_PLAYER)
+
+def getTotalOngForAdmin():
+    return Sub(getTotalOng(), getTotalOngForPlayer())
 
 def getLuckySupply():
     return Get(GetContext(), LUCKY_TOTAL_SUPPLY_KEY)
