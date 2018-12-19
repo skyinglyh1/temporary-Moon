@@ -270,11 +270,11 @@ def Main(operation, args):
             return False
         roundNumber = args[0]
         return getRoundStatus(roundNumber)
-    if operation == "getRoundEndTime":
+    if operation == "getRoundBetsEndTime":
         if len(args) != 1:
             return False
         roundNumber = args[0]
-        return getRoundEndTime(roundNumber)
+        return getRoundBetsEndTime(roundNumber)
 
     if operation == "getRoundExplodePointHash":
         if len(args) != 1:
@@ -363,6 +363,7 @@ def startNewRound(explodePoint, salt):
 
     # start new round
     nextRound = Add(currentRound, 1)
+    Put(GetContext(), CURRET_ROUND_NUM_KEY, nextRound)
     explodePointHash = sha256(explodePoint)^sha256(salt)
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, nextRound), ROUND_EXPLODE_NUM_HASH_KEY), explodePointHash)
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, nextRound), ROUND_STATUS_KEY), STATUS_ON)
@@ -492,12 +493,12 @@ def getExplodePoint():
 
 ####################### Round Info Start #####################
 def getRoundBetStatus(roundNumber):
-    return GetTime() <= getRoundEndTime(roundNumber)
+    return GetTime() <= getRoundBetsEndTime(roundNumber)
 
 def getRoundStatus(roundNumber):
     return Get(GetContext(), concatKey(concatKey(ROUND_PREFIX, roundNumber), ROUND_STATUS_KEY))
 
-def getRoundEndTime(roundNumber):
+def getRoundBetsEndTime(roundNumber):
     return Get(GetContext(), concatKey(concatKey(ROUND_PREFIX, roundNumber), ROUND_END_BET_TIME_KEY))
 
 def getRoundExplodePointHash(roundNumber):
