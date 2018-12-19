@@ -9,9 +9,6 @@ from boa.interop.Ontology.Native import Invoke
 from boa.interop.Ontology.Runtime import GetCurrentBlockHash
 from boa.builtins import ToScriptHash, concat, state, sha256
 from boa.interop.System.Transaction import GetTransactionHash
-
-
-
 """
 https://github.com/ONT-Avocados/python-template/blob/master/libs/Utils.py
 """
@@ -61,22 +58,22 @@ https://github.com/ONT-Avocados/python-template/blob/master/libs/SafeMath.py
 """
 
 def Add(a, b):
-	"""
-	Adds two numbers, throws on overflow.
-	"""
-	c = a + b
-	Require(c >= a)
-	return c
+    """
+    Adds two numbers, throws on overflow.
+    """
+    c = a + b
+    Require(c >= a)
+    return c
 
 def Sub(a, b):
-	"""
-	Substracts two numbers, throws on overflow (i.e. if subtrahend is greater than minuend).
+    """
+    Substracts two numbers, throws on overflow (i.e. if subtrahend is greater than minuend).
     :param a: operand a
     :param b: operand b
     :return: a - b if a - b > 0 or revert the transaction.
-	"""
-	Require(a>=b)
-	return a-b
+    """
+    Require(a>=b)
+    return a-b
 
 def ASub(a, b):
     if a > b:
@@ -87,25 +84,25 @@ def ASub(a, b):
         return 0
 
 def Mul(a, b):
-	"""
-	Multiplies two numbers, throws on overflow.
+    """
+    Multiplies two numbers, throws on overflow.
     :param a: operand a
     :param b: operand b
     :return: a - b if a - b > 0 or revert the transaction.
-	"""
-	if a == 0:
-		return 0
-	c = a * b
-	Require(c / a == b)
-	return c
+    """
+    if a == 0:
+        return 0
+    c = a * b
+    Require(c / a == b)
+    return c
 
 def Div(a, b):
-	"""
-	Integer division of two numbers, truncating the quotient.
-	"""
-	Require(b > 0)
-	c = a / b
-	return c
+    """
+    Integer division of two numbers, truncating the quotient.
+    """
+    Require(b > 0)
+    c = a / b
+    return c
 
 def Pwr(a, b):
     """
@@ -243,8 +240,8 @@ def Main(operation, args):
         return getLuckyToOngRate()
     if operation == "getCurrentRound":
         return getCurrentRound()
-    if operation == "getExplodeNumber":
-        return getExplodeNumber()
+    if operation == "getExplodePoint":
+        return getExplodePoint()
     ####################### Global Info End #####################
     ####################### Round Info Start #####################
     if operation == "getRoundStatus":
@@ -418,13 +415,13 @@ def getLuckyToOngRate():
 def getCurrentRound():
     return Get(GetContext(), CURRET_ROUND_NUM_KEY)
 
-def getExplodeNumber():
+def getExplodePoint():
     blockHash = GetCurrentBlockHash()
     tx = GetScriptContainer()
     txhash = GetTransactionHash(tx)
     randomNumber = abs(blockHash ^ txhash) % 1000
-    explodeNumber = Add(abs(randomNumber), 1)
-    return explodeNumber
+    explodePoint = Add(abs(randomNumber), 1)
+    return explodePoint
 ################## Global Info End #######################
 
 
