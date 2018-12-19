@@ -187,7 +187,6 @@ def Main(operation, args):
             return False
         keyValueList = args[0]
         return setOddsTable(keyValueList)
-
     if operation == "addDividendToLuckyHolders":
         if len(args) != 1:
             return False
@@ -333,8 +332,8 @@ def init():
     else:
         Put(GetContext(), INIIT_KEY, 1)
         Notify(["Initialized contract successfully"])
-        # startNewRound()
         setLuckyToOngRate(1, 2)
+        Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, 0), ROUND_STATUS_KEY), STATUS_OFF)
     return True
 
 def setLuckyToOngRate(ong, lucky):
