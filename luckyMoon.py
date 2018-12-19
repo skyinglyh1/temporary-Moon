@@ -160,7 +160,7 @@ ROUND_END_BET_TIME_KEY = "R2"
 ROUND_EXPLODE_NUM_HASH_KEY = "R3"
 ROUND_EXPLODE_NUM_KEY = "R4"
 ROUND_PLAYER_BET_BALANCE_KEY = "R5"
-
+ROUND_PLAYER_ADDRESS_LIST_KEY = "R6"
 
 STATUS_ON = "RUNNING"
 STATUS_OFF = "END"
@@ -287,6 +287,17 @@ def Main(operation, args):
             return False
         roundNumber = args[0]
         return getRoundExplodePoint(roundNumber)
+    # if operation == "getRoundPlayersList":
+    #     if len(args) != 1:
+    #         return False
+    #     roundNumber = args[0]
+    #     return getRoundPlayersList(roundNumber)
+    if operation == "verifyRoundExplodePointIsRandom":
+        if len(args) != 2:
+            return False
+        roundNumber = args[0]
+        salt = args[1]
+        return verifyRoundExplodePointIsRandom(roundNumber, salt)
     ####################### Round Info End #####################
     ######################### For testing purpose Begin ##############
     if operation == "getOngBalanceOf":
@@ -336,7 +347,7 @@ def setOddsTable(keyValueList):
     RequireWitness(Admin)
     for keyValue in keyValueList:
         Put(GetContext(), concatKey(TABLE_KEY, keyValue[0]), keyValue[1])
-    Notify(["set OddsTable1 Successfully!"])
+    Notify(["set OddsTable Successfully!"])
     return True
 
 def addDividendToLuckyHolders(ongAmount):
@@ -418,7 +429,10 @@ def bet(account, ongAmount):
     Require(getRoundBetStatus(currentRound))
     Require(_transferONG(account, ContractAddress, ongAmount))
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), concatKey(ROUND_PLAYER_BET_BALANCE_KEY, account)), Add(getPlayerBetBalance(currentRound, account), ongAmount))
-
+    # roundPlayersList = getRoundPlayersList(currentRound)
+    # if not _checkIsInRoundPlayersList(account, roundPlayersList):
+    #     roundPlayersList.append(account)
+    #     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), ROUND_PLAYER_ADDRESS_LIST_KEY), Serialize(roundPlayersList))
     updateDividend(account)
     luckyBalanceToBeAdd = Div(Mul(ongAmount, getLuckyToOngRate()), Magnitude)
     Put(GetContext(), concatKey(LUCKY_BALANCE_KEY, account), Add(getLuckyBalanceOf(account), luckyBalanceToBeAdd))
@@ -492,6 +506,13 @@ def getRoundExplodePointHash(roundNumber):
 
 def getRoundExplodePoint(roundNumber):
     return Get(GetContext(), concatKey(concatKey(ROUND_PREFIX, roundNumber), ROUND_EXPLODE_NUM_KEY))
+#
+# def getRoundPlayersList(roundNumber):
+#     roundPlayersInfo = Get(GetContext(), concatKey(concatKey(ROUND_PREFIX, roundNumber), ROUND_PLAYER_ADDRESS_LIST_KEY))
+#     roundPlayersList = []
+#     if roundPlayersInfo:
+#         roundPlayersList = Deserialize(roundPlayersInfo)
+#     return roundPlayersList
 
 def verifyRoundExplodePointIsRandom(roundNumber, salt):
     Require(getRoundStatus(roundNumber) == STATUS_OFF)
@@ -533,6 +554,12 @@ def updateDividend(account):
         Put(GetContext(), concatKey(DIVIDEND_BALANCE_KEY, account), getDividendBalanceOf(account))
         Put(GetContext(), concatKey(PROFIT_PER_LUCKY_FROM_KEY, account), profitPerLucky)
     return True
+
+def _checkIsInRoundPlayersList(account, playersList):
+    for player in playersList:
+        if account == player:
+            return True
+    return False
 
 def _getRandomNumber(interval):
     blockHash = GetCurrentBlockHash()
