@@ -187,6 +187,7 @@ def Main(operation, args):
             return False
         keyValueList = args[0]
         return setOddsTable(keyValueList)
+
     if operation == "addDividendToLuckyHolders":
         if len(args) != 1:
             return False
@@ -196,15 +197,17 @@ def Main(operation, args):
         if len(args) != 1:
             return False
         explodePoint = args[0]
-        return startNewRound(explodePoint)
-    if operation == "endBet":
-        return endBet()
+        salt = args[1]
+        return startNewRound(explodePoint, salt)
+    # if operation == "endBet":
+    #     return endBet()
     if operation == "endCurrentRound":
         if len(args) != 2:
             return False
         explodePoint = args[0]
-        effectiveEscapeAcctPointList = args[1]
-        return endCurrentRound(explodePoint, effectiveEscapeAcctPointList)
+        salt = args[1]
+        effectiveEscapeAcctPointList = args[2]
+        return endCurrentRound(explodePoint, salt, effectiveEscapeAcctPointList)
     if operation == "adminWithdraw":
         if len(args) != 2:
             return False
@@ -333,7 +336,7 @@ def setOddsTable(keyValueList):
     RequireWitness(Admin)
     for keyValue in keyValueList:
         Put(GetContext(), concatKey(TABLE_KEY, keyValue[0]), keyValue[1])
-    Notify(["set OddsTable Successfully!"])
+    Notify(["set OddsTable1 Successfully!"])
     return True
 
 def addDividendToLuckyHolders(ongAmount):
@@ -343,14 +346,14 @@ def addDividendToLuckyHolders(ongAmount):
     Notify(["addOngToLuckyHolders", ongAmount])
     return True
 
-def startNewRound(explodePoint):
+def startNewRound(explodePoint, salt):
     RequireWitness(Admin)
     currentRound = getCurrentRound()
     Require(getRoundStatus(currentRound) == STATUS_OFF)
 
     # start new round
     nextRound = Add(currentRound, 1)
-    explodePointHash = sha256(explodePoint)
+    explodePointHash = sha256(explodePoint)^sha256(salt)
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, nextRound), ROUND_EXPLODE_NUM_HASH_KEY), explodePointHash)
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, nextRound), ROUND_STATUS_KEY), STATUS_ON)
     now = GetTime()
@@ -358,17 +361,11 @@ def startNewRound(explodePoint):
     Notify(["startNewRound", nextRound, now, explodePointHash])
     return True
 
-def endBet():
+def endCurrentRound(explodePoint, salt, effectiveEscapeAcctPointList):
     RequireWitness(Admin)
     currentRound = getCurrentRound()
-    Require(GetTime() > getRoundEndTime(currentRound))
-    Notify(["endBet", currentRound])
-    return True
-
-def endCurrentRound(explodePoint, effectiveEscapeAcctPointList):
-    RequireWitness(Admin)
-    currentRound = getCurrentRound()
-    Require(sha256(explodePoint) == getRoundExplodePointHash(currentRound))
+    hash = sha256(explodePoint)^sha256(salt)
+    Require(hash == getRoundExplodePointHash(currentRound))
     Put(GetContext(), concatKey(ROUND_EXPLODE_NUM_KEY, currentRound), explodePoint)
     effectiveEscapeAcctPointOddsProfitList = []
     for effectiveEscapeAcctPoint in effectiveEscapeAcctPointList:
@@ -496,9 +493,10 @@ def getRoundExplodePointHash(roundNumber):
 def getRoundExplodePoint(roundNumber):
     return Get(GetContext(), concatKey(concatKey(ROUND_PREFIX, roundNumber), ROUND_EXPLODE_NUM_KEY))
 
-def verifyRoundExplodePointIsRandom(roundNumber):
+def verifyRoundExplodePointIsRandom(roundNumber, salt):
     Require(getRoundStatus(roundNumber) == STATUS_OFF)
-    return sha256(getRoundExplodePoint(roundNumber)) == getRoundExplodePointHash(roundNumber)
+    tryToVerifyHash = sha256(getRoundExplodePoint(roundNumber))^sha256(salt)
+    return tryToVerifyHash == getRoundExplodePointHash(roundNumber)
 ####################### Round Info End #####################
 
 
