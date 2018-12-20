@@ -416,8 +416,11 @@ def endCurrentRound(explodePoint, salt, effectiveEscapeAcctPointList):
     RequireWitness(Admin)
     currentRound = getCurrentRound()
     hash = sha256(explodePoint)^sha256(salt)
-    Require(hash == getRoundExplodePointHash(currentRound))
-    Put(GetContext(), concatKey(ROUND_EXPLODE_NUM_KEY, currentRound), explodePoint)
+    if hash != getRoundExplodePointHash(currentRound):
+        # the explodePoint and salt are wrong
+        Notify(["Error", 101])
+        return False
+    Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), ROUND_EXPLODE_NUM_KEY), explodePoint)
     effectiveEscapeAcctPointOddsProfitList = _settleAccounts(currentRound, explodePoint, effectiveEscapeAcctPointList)
     Require(_closeRound(currentRound))
     Notify(["endCurrentRound", currentRound, explodePoint, effectiveEscapeAcctPointOddsProfitList])
@@ -427,7 +430,7 @@ def endCurrentRoundWithCost(explodePoint, effectiveEscapeAcctPointList):
     RequireWitness(Admin)
     currentRound = getCurrentRound()
     Require(GetTime() > Add(3600, getRoundBetsEndTime(currentRound)))
-    Put(GetContext(), concatKey(ROUND_EXPLODE_NUM_KEY, currentRound), explodePoint)
+    Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), ROUND_EXPLODE_NUM_KEY), explodePoint)
     effectiveEscapeAcctPointOddsProfitList = _settleAccounts(currentRound, explodePoint, effectiveEscapeAcctPointList)
     Require(_closeRound(currentRound))
     Notify(["endCurrentRoundWithCost", currentRound, explodePoint, effectiveEscapeAcctPointOddsProfitList])
@@ -543,10 +546,13 @@ def getCurrentRound():
     return Get(GetContext(), CURRET_ROUND_NUM_KEY)
 
 def getExplodePoint():
+    """
+    :return: a random number in the range of 1 to 1 000 000
+    """
     blockHash = GetCurrentBlockHash()
     tx = GetScriptContainer()
     txhash = GetTransactionHash(tx)
-    randomNumber = abs(blockHash ^ txhash) % 1000
+    randomNumber = abs(blockHash ^ txhash) % 1000000
     explodePoint = Add(abs(randomNumber), 1)
     return explodePoint
 
