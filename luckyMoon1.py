@@ -184,7 +184,7 @@ def Main(operation, args):
         ong = args[0]
         lucky = args[1]
         return setLuckyToOngRate(ong, lucky)
-    if operation == "setReferralBonus":
+    if operation == "setReferralBonusPercentage":
         if len(args) != 1:
             return False
         referralBonus = args[0]
