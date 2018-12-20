@@ -194,7 +194,7 @@ def Main(operation, args):
             return False
         toBeReferred = args[0]
         referral = args[1]
-        return addReferral(referral, toBeReferred)
+        return addReferral(toBeReferred, referral)
     if operation == "addMultiReferral":
         if len(args) != 1:
             return False
