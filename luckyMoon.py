@@ -137,25 +137,22 @@ def Sqrt(a):
         c = Div(Add(Div(a, c), c), 2)
     return c
 
+# block2=GetBlock(bytearray([228, 3, 21, 226, 47, 195, 11, 70, 72, 227, 84, 109, 51, 146, 115, 23, 247, 23, 93, 196, 200, 102, 234, 68, 48, 119, 121, 130, 64, 197, 224, 22]))
+# block_hash=bytearray([228, 3, 21, 226, 47, 195, 11, 70, 72, 227, 84, 109, 51, 146, 115, 23, 247, 23, 93, 196, 200, 102, 234, 68, 48, 119, 121, 130, 64, 197, 224, 22])
+# block2=GetBlock(block_hash)
+
 
 ONGAddress = bytearray(b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02')
 Admin = ToScriptHash('AQf4Mzu1YJrhz9f3aRkkwSm9n3qhXGSh4p')
 INIIT_KEY = "Init"
-TOTAL_ONG_KEY = "TotalOng"
-TOTAL_ONG_FOR_PLAYER = "TotalOngForPlayer"
-LUCKY_TOTAL_SUPPLY_KEY = "LuckySupply"
-LUCKY_BALANCE_KEY = "LuckyBalance"
 
-LUCKY_TO_ONG_RATE_KEY = "LuckyToOng"
-
-PROFIT_PER_LUCKY_KEY = "ProfitPerLucky"
-PROFIT_PER_LUCKY_FROM_KEY = "ProfitPerLuckyFrom"
-DIVIDEND_BALANCE_KEY = "DividendBalance"
-ONG_BALANCE_KEY = "OngBalance"
-
-ROUND_PREFIX = "G01"
-CURRET_ROUND_NUM_KEY = "G02"
-TABLE_KEY = "G03"
+TOTAL_ONG_FOR_ADMIN = "G1"
+LUCKY_TOTAL_SUPPLY_KEY = "G2"
+LUCKY_TO_ONG_RATE_KEY = "G3"
+PROFIT_PER_LUCKY_KEY = "G4"
+ROUND_PREFIX = "G5"
+CURRET_ROUND_NUM_KEY = "G6"
+TABLE_KEY = "G7"
 
 ROUND_STATUS_KEY = "R1"
 ROUND_END_BET_TIME_KEY = "R2"
@@ -164,8 +161,16 @@ ROUND_EXPLODE_NUM_KEY = "R4"
 ROUND_PLAYER_BET_BALANCE_KEY = "R5"
 ROUND_PLAYER_ADDRESS_LIST_KEY = "R6"
 
+# PLAYER_REFERRAL_KEY + referral -> toBeReferred
+PLAYER_REFERRAL_KEY = "P1"
+LUCKY_BALANCE_KEY = "P2"
+PROFIT_PER_LUCKY_FROM_KEY = "P3"
+DIVIDEND_BALANCE_KEY = "P4"
+ONG_BALANCE_KEY = "P5"
+
 STATUS_ON = "RUNNING"
 STATUS_OFF = "END"
+
 BettingDuration = 20
 ONGMagnitude = 1000000000
 LuckyDecimals = 8
@@ -189,6 +194,12 @@ def Main(operation, args):
             return False
         keyValueList = args[0]
         return setOddsTable(keyValueList)
+    if operation == "addReferral":
+        if len(args) != 2:
+            return False
+        referral = args[0]
+        toBeReferred = args[1]
+        return addReferral(referral, toBeReferred)
     if operation == "addDividendToLuckyHolders":
         if len(args) != 1:
             return False
@@ -200,8 +211,6 @@ def Main(operation, args):
         explodePoint = args[0]
         salt = args[1]
         return startNewRound(explodePoint, salt)
-    # if operation == "endBet":
-    #     return endBet()
     if operation == "endCurrentRound":
         if len(args) != 3:
             return False
@@ -209,6 +218,12 @@ def Main(operation, args):
         salt = args[1]
         effectiveEscapeAcctPointList = args[2]
         return endCurrentRound(explodePoint, salt, effectiveEscapeAcctPointList)
+    if operation == "endCurrentRoundWithCost":
+        if len(args) != 2:
+            return False
+        explodePoint = args[0]
+        effectiveEscapeAcctPointList = args[1]
+        return endCurrentRoundWithCost(explodePoint, effectiveEscapeAcctPointList)
     if operation == "adminInvest":
         if len(args) != 1:
             return False
@@ -257,10 +272,6 @@ def Main(operation, args):
             return False
         escapePoint = args[0]
         return getOddsForPlayer(escapePoint)
-    if operation == "getTotalOng":
-        return getTotalOng()
-    if operation == "getTotalOngForPlayer":
-        return getTotalOngForPlayer()
     if operation == "getTotalOngForAdmin":
         return getTotalOngForAdmin()
     if operation == "getLuckySupply":
@@ -271,6 +282,11 @@ def Main(operation, args):
         return getCurrentRound()
     if operation == "getExplodePoint":
         return getExplodePoint()
+    if operation == "getReferred":
+        if len(args) != 1:
+            return False
+        referral = args[0]
+        return getReferred(referral)
     ####################### Global Info End #####################
     ####################### Round Info Start #####################
     if operation == "getRoundBetStatus":
@@ -362,6 +378,13 @@ def setOddsTable(keyValueList):
     Notify(["set OddsTable Successfully!"])
     return True
 
+def addReferral(referral, toBeReferred):
+    RequireScriptHash(referral)
+    RequireScriptHash(toBeReferred)
+    Put(GetContext(), concatKey(PLAYER_REFERRAL_KEY, referral), toBeReferred)
+    Notify(["addReferral", referral, toBeReferred])
+    return True
+
 def addDividendToLuckyHolders(ongAmount):
     RequireWitness(Admin)
     luckySupply = getLuckySupply()
@@ -395,32 +418,26 @@ def endCurrentRound(explodePoint, salt, effectiveEscapeAcctPointList):
     hash = sha256(explodePoint)^sha256(salt)
     Require(hash == getRoundExplodePointHash(currentRound))
     Put(GetContext(), concatKey(ROUND_EXPLODE_NUM_KEY, currentRound), explodePoint)
-    effectiveEscapeAcctPointOddsProfitList = []
-    totalOngToBeAdd = 0
-    for effectiveEscapeAcctPoint in effectiveEscapeAcctPointList:
-        account = effectiveEscapeAcctPoint[0]
-        escapePoint = effectiveEscapeAcctPoint[1]
-        Require(escapePoint < explodePoint)
-        odds = getOddsForPlayer(escapePoint)
-        betBalance = getPlayerBetBalance(currentRound, account)
-        ongBalanceToBeAdd = Div(Mul(betBalance, odds), OddsMagnitude)
-        totalOngToBeAdd = Add(totalOngToBeAdd, ongBalanceToBeAdd)
-        effectiveEscapeAcctPointOddsProfit = []
-        effectiveEscapeAcctPointOddsProfit.append(account)
-        effectiveEscapeAcctPointOddsProfit.append(escapePoint)
-        effectiveEscapeAcctPointOddsProfit.append(odds)
-        effectiveEscapeAcctPointOddsProfit.append(Sub(ongBalanceToBeAdd, betBalance))
-        effectiveEscapeAcctPointOddsProfitList.append(effectiveEscapeAcctPointOddsProfit)
-        Put(GetContext(), concatKey(ONG_BALANCE_KEY, account), Add(getOngBalanceOf(account), ongBalanceToBeAdd))
+    effectiveEscapeAcctPointOddsProfitList = _settleAccounts(currentRound, explodePoint, effectiveEscapeAcctPointList)
+    Require(_closeRound(currentRound))
     Notify(["endCurrentRound", currentRound, explodePoint, effectiveEscapeAcctPointOddsProfitList])
-    Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), ROUND_STATUS_KEY), STATUS_OFF)
-    Put(GetContext(), TOTAL_ONG_FOR_PLAYER, Add(getTotalOngForPlayer(), totalOngToBeAdd))
     return True
+
+def endCurrentRoundWithCost(explodePoint, effectiveEscapeAcctPointList):
+    RequireWitness(Admin)
+    currentRound = getCurrentRound()
+    Require(GetTime() > Add(3600, getRoundBetsEndTime(currentRound)))
+    Put(GetContext(), concatKey(ROUND_EXPLODE_NUM_KEY, currentRound), explodePoint)
+    effectiveEscapeAcctPointOddsProfitList = _settleAccounts(currentRound, explodePoint, effectiveEscapeAcctPointList)
+    Require(_closeRound(currentRound))
+    Notify(["endCurrentRoundWithCost", currentRound, explodePoint, effectiveEscapeAcctPointOddsProfitList])
+    return True
+
 
 def adminInvest(ongAmount):
     RequireWitness(Admin)
     Require(_transferONG(Admin, ContractAddress, ongAmount))
-    Put(GetContext(), TOTAL_ONG_KEY, Add(getTotalOng(), ongAmount))
+    Put(GetContext(), TOTAL_ONG_FOR_ADMIN, Add(getTotalOngForAdmin(), ongAmount))
     Notify(["adminInvest", ongAmount])
     return True
 
@@ -428,8 +445,11 @@ def adminWithdraw(toAcct, ongAmount):
     RequireWitness(Admin)
     currendRound = getCurrentRound()
     Require(getRoundStatus(currendRound) == STATUS_OFF)
-    Require(ongAmount < Sub(getTotalOng(), getTotalOngForPlayer()))
-    Put(GetContext(), TOTAL_ONG_KEY, Sub(getTotalOng(), ongAmount))
+
+    totalOngForAdmin = getTotalOngForAdmin()
+    Require(ongAmount <= totalOngForAdmin)
+    Put(GetContext(), TOTAL_ONG_FOR_ADMIN, Sub(getTotalOngForAdmin(), ongAmount))
+
     Require(_transferONGFromContact(toAcct, ongAmount))
     Notify(["adminWithdraw", toAcct, ongAmount])
     return True
@@ -457,14 +477,19 @@ def bet(account, ongAmount):
     Require(getRoundStatus(currentRound) == STATUS_ON)
     Require(getRoundBetStatus(currentRound))
     Require(_transferONG(account, ContractAddress, ongAmount))
-    Put(GetContext(), TOTAL_ONG_KEY, Add(getTotalOng(), ongAmount))
+    Put(GetContext(), TOTAL_ONG_FOR_ADMIN, Add(getTotalOngForAdmin(), ongAmount))
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), concatKey(ROUND_PLAYER_BET_BALANCE_KEY, account)), Add(getPlayerBetBalance(currentRound, account), ongAmount))
     # roundPlayersList = getRoundPlayersList(currentRound)
     # if not _checkIsInRoundPlayersList(account, roundPlayersList):
     #     roundPlayersList.append(account)
     #     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), ROUND_PLAYER_ADDRESS_LIST_KEY), Serialize(roundPlayersList))
     updateDividend(account)
-    luckyBalanceToBeAdd = Div(Mul(ongAmount, getLuckyToOngRate()), Magnitude)
+    luckyBalanceToBeAdd = 0
+    if _checkReferral(account):
+        # give the referral 10% more Lucky
+        luckyBalanceToBeAdd = Div(Div(Mul(Mul(ongAmount, getLuckyToOngRate()), 110), 100), Magnitude)
+    else:
+        luckyBalanceToBeAdd = Div(Mul(ongAmount, getLuckyToOngRate()), Magnitude)
     Put(GetContext(), concatKey(LUCKY_BALANCE_KEY, account), Add(getLuckyBalanceOf(account), luckyBalanceToBeAdd))
     Put(GetContext(), LUCKY_TOTAL_SUPPLY_KEY, Add(getLuckySupply(), luckyBalanceToBeAdd))
     Notify(["bet", currentRound, account, ongAmount])
@@ -494,14 +519,12 @@ def getOddsForPlayer(escapePoint):
     randomNumber = _getRandomNumber(interval)
     return Add(oddH, randomNumber)
 
-def getTotalOng():
-    return Get(GetContext(), TOTAL_ONG_KEY)
-
-def getTotalOngForPlayer():
-    return Get(GetContext(), TOTAL_ONG_FOR_PLAYER)
-
 def getTotalOngForAdmin():
-    return Sub(getTotalOng(), getTotalOngForPlayer())
+    return Get(GetContext(), TOTAL_ONG_FOR_ADMIN)
+
+# def getEarningForAdmin():
+#     Require(getRoundStatus(getCurrentRound()) == STATUS_OFF)
+#     return Get(GetContext(), TOTAL_ONG_FOR_ADMIN)
 
 def getLuckySupply():
     return Get(GetContext(), LUCKY_TOTAL_SUPPLY_KEY)
@@ -527,6 +550,8 @@ def getExplodePoint():
     explodePoint = Add(abs(randomNumber), 1)
     return explodePoint
 
+def getReferred(referral):
+    return Get(GetContext(), concatKey(PLAYER_REFERRAL_KEY, referral))
 ################## Global Info End #######################
 
 
@@ -584,6 +609,31 @@ def getPlayerBetBalance(roundNumber, account):
 
 
 ######################### Utility Methods Start #########################
+def _settleAccounts(roundNumber, explodePoint, effectiveEscapeAcctPointList):
+    effectiveEscapeAcctPointOddsProfitList = []
+    totalOngForAdminToBeSub = 0
+    for effectiveEscapeAcctPoint in effectiveEscapeAcctPointList:
+        account = effectiveEscapeAcctPoint[0]
+        escapePoint = effectiveEscapeAcctPoint[1]
+        Require(escapePoint < explodePoint)
+        odds = getOddsForPlayer(escapePoint)
+        betBalance = getPlayerBetBalance(roundNumber, account)
+        ongBalanceForPlayerToBeAdd = Div(Mul(betBalance, odds), OddsMagnitude)
+        totalOngForAdminToBeSub = Add(totalOngForAdminToBeSub, ongBalanceForPlayerToBeAdd)
+        effectiveEscapeAcctPointOddsProfit = []
+        effectiveEscapeAcctPointOddsProfit.append(account)
+        effectiveEscapeAcctPointOddsProfit.append(escapePoint)
+        effectiveEscapeAcctPointOddsProfit.append(odds)
+        effectiveEscapeAcctPointOddsProfit.append(Sub(ongBalanceForPlayerToBeAdd, betBalance))
+        effectiveEscapeAcctPointOddsProfitList.append(effectiveEscapeAcctPointOddsProfit)
+        Put(GetContext(), concatKey(ONG_BALANCE_KEY, account), Add(getOngBalanceOf(account), ongBalanceForPlayerToBeAdd))
+    Put(GetContext(), TOTAL_ONG_FOR_ADMIN, Add(getTotalOngForAdmin(), totalOngForAdminToBeSub))
+    return effectiveEscapeAcctPointOddsProfitList
+
+def _closeRound(roundNumber):
+    Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, roundNumber), ROUND_STATUS_KEY), STATUS_OFF)
+    return True
+
 def updateDividend(account):
     profitPerLucky = Get(GetContext(), PROFIT_PER_LUCKY_KEY)
     profitPerLuckyFrom = Get(GetContext(), concatKey(PROFIT_PER_LUCKY_FROM_KEY, account))
@@ -598,6 +648,12 @@ def _checkIsInRoundPlayersList(account, playersList):
     for player in playersList:
         if account == player:
             return True
+    return False
+
+def _checkReferral(referral):
+    toBeReferred = getReferred(referral)
+    if len(toBeReferred) == 20:
+        return True
     return False
 
 def _getRandomNumber(interval):
