@@ -152,7 +152,6 @@ LUCKY_TO_ONG_RATE_KEY = "G3"
 PROFIT_PER_LUCKY_KEY = "G4"
 ROUND_PREFIX = "G5"
 CURRET_ROUND_NUM_KEY = "G6"
-TABLE_KEY = "G7"
 REFERRAL_BONUS_PERCENTAGE_KEY = "G8"
 
 ROUND_STATUS_KEY = "R1"
@@ -245,7 +244,7 @@ def Main(operation, args):
     ######################## for Admin to invoke End ###############
     ######################## for Player to invoke Begin ###############
     if operation == "bet":
-        if len(args) != 2:
+        if len(args) != 3:
             return False
         account = args[0]
         ongAmount = args[1]
@@ -481,7 +480,7 @@ def bet(account, ongAmount, referral):
 
     updateDividend(account)
 
-    if _checkReferral(account) == False and len(referral) == 20:
+    if _checkReferral(account) == False and len(referral) == 20 and account != referral:
         _addReferral(account, referral)
 
     _referralLuckyBalanceToBeAdd = 0
