@@ -403,7 +403,8 @@ def addDividendToLuckyHolders(ongAmount):
         Notify(["noLucky"])
         return False
     profitPerLuckyToBeAdd = Div(Mul(ongAmount, Magnitude), getLuckySupply())
-    Put(GetContext(), PROFIT_PER_LUCKY_KEY, profitPerLuckyToBeAdd)
+    oldProfitPerLucky = Get(GetContext(), PROFIT_PER_LUCKY_KEY)
+    Put(GetContext(), PROFIT_PER_LUCKY_KEY, Add(profitPerLuckyToBeAdd, oldProfitPerLucky))
     Notify(["addDividendToLuckyHolders", ongAmount])
     return True
 
@@ -504,7 +505,7 @@ def bet(account, ongAmount):
     updateDividend(account)
 
     _referralLuckyBalanceToBeAdd = 0
-    acctLuckyBalanceToBeAdd = Div(Mul(ongAmount, getLuckyToOngRate()), Magnitude)
+    acctLuckyBalanceToBeAdd = Div(Mul(Mul(ongAmount, getLuckyToOngRate()), LuckyMagnitude), Magnitude)
     Put(GetContext(), concatKey(LUCKY_BALANCE_KEY, account), Add(getLuckyBalanceOf(account), acctLuckyBalanceToBeAdd))
 
     if len(getReferral(account)) == 20:
