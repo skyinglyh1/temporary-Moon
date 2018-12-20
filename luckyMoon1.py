@@ -376,7 +376,7 @@ def addReferral(toBeReferred, referral):
     RequireWitness(Admin)
     RequireScriptHash(toBeReferred)
     RequireScriptHash(referral)
-    Require(getReferral(toBeReferred) == False)
+    Require(not getReferral(toBeReferred))
     Require(toBeReferred == referral)
     Put(GetContext(), concatKey(PLAYER_REFERRAL_KEY, toBeReferred), referral)
     Notify(["addReferral", toBeReferred, referral])
@@ -389,7 +389,7 @@ def addMultiReferral(toBeReferredReferralList):
         referral = toBeReferredReferral[1]
         RequireScriptHash(toBeReferred)
         RequireScriptHash(referral)
-        Require(getReferral(toBeReferred) == False)
+        Require(not getReferral(toBeReferred))
         Require(toBeReferred == referral)
         Put(GetContext(), concatKey(PLAYER_REFERRAL_KEY, toBeReferred), referral)
     Notify(["addMultiReferral", toBeReferredReferralList])
@@ -507,7 +507,7 @@ def bet(account, ongAmount):
     acctLuckyBalanceToBeAdd = Div(Mul(ongAmount, getLuckyToOngRate()), Magnitude)
     Put(GetContext(), concatKey(LUCKY_BALANCE_KEY, account), Add(getLuckyBalanceOf(account), acctLuckyBalanceToBeAdd))
 
-    if _checkReferral(account) == True:
+    if len(getReferral(account)) == 20:
         _referralLuckyBalanceToBeAdd = Div(Mul(acctLuckyBalanceToBeAdd, getReferralBonusPercentage()), 100)
         _referral = getReferral(account)
         Put(GetContext(), concatKey(LUCKY_BALANCE_KEY, _referral), Add(getLuckyBalanceOf(_referral), _referralLuckyBalanceToBeAdd))
@@ -656,11 +656,6 @@ def _checkIsInRoundPlayersList(account, playersList):
             return True
     return False
 
-def _checkReferral(toBeReferred):
-    referral = getReferral(toBeReferred)
-    if len(referral) == 20:
-        return True
-    return False
 
 def _getRandomNumber(interval):
     blockHash = GetCurrentBlockHash()
