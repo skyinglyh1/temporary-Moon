@@ -377,7 +377,7 @@ def addReferral(toBeReferred, referral):
     RequireScriptHash(toBeReferred)
     RequireScriptHash(referral)
     Require(not getReferral(toBeReferred))
-    Require(toBeReferred == referral)
+    Require(toBeReferred != referral)
     Put(GetContext(), concatKey(PLAYER_REFERRAL_KEY, toBeReferred), referral)
     Notify(["addReferral", toBeReferred, referral])
     return True
@@ -390,7 +390,7 @@ def addMultiReferral(toBeReferredReferralList):
         RequireScriptHash(toBeReferred)
         RequireScriptHash(referral)
         Require(not getReferral(toBeReferred))
-        Require(toBeReferred == referral)
+        Require(toBeReferred != referral)
         Put(GetContext(), concatKey(PLAYER_REFERRAL_KEY, toBeReferred), referral)
     Notify(["addMultiReferral", toBeReferredReferralList])
     return True
