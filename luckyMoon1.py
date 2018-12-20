@@ -378,6 +378,7 @@ def setReferralBonusPercentage(referralBonus):
     return True
 
 def addReferral(toBeReferred, referral):
+    RequireWitness(Admin)
     RequireScriptHash(toBeReferred)
     RequireScriptHash(referral)
     Require(getReferral(toBeReferred) == False)
@@ -387,6 +388,7 @@ def addReferral(toBeReferred, referral):
     return True
 
 def addMultiReferral(toBeReferredReferralList):
+    RequireWitness(Admin)
     for toBeReferredReferral in toBeReferredReferralList:
         toBeReferred = toBeReferredReferral[0]
         referral = toBeReferredReferral[1]
