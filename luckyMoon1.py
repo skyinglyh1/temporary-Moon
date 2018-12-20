@@ -194,6 +194,17 @@ def Main(operation, args):
             return False
         referralBonus = args[0]
         return setReferralBonusPercentage(referralBonus)
+    if operation == "addReferral":
+        if len(args) != 2:
+            return False
+        toBeReferred = args[0]
+        referral = args[1]
+        return addReferral(referral, toBeReferred)
+    if operation == "addMultiReferral":
+        if len(args) != 1:
+            return False
+        toBeReferredReferralList = args[0]
+        return addMultiReferral(toBeReferredReferralList)
     if operation == "addDividendToLuckyHolders":
         if len(args) != 1:
             return False
@@ -244,12 +255,11 @@ def Main(operation, args):
     ######################## for Admin to invoke End ###############
     ######################## for Player to invoke Begin ###############
     if operation == "bet":
-        if len(args) != 3:
+        if len(args) != 2:
             return False
         account = args[0]
         ongAmount = args[1]
-        referral = args[2]
-        return bet(account, ongAmount, referral)
+        return bet(account, ongAmount)
     if operation == "withdraw":
         if len(args) != 1:
             return False
@@ -364,18 +374,35 @@ def setReferralBonusPercentage(referralBonus):
     Require(referralBonus >= 0)
     Require(referralBonus <= 100)
     Put(GetContext(), REFERRAL_BONUS_PERCENTAGE_KEY, referralBonus)
+    Notify(["setReferralBonus", referralBonus])
+    return True
 
-def _addReferral(toBeReferred, referral):
+def addReferral(toBeReferred, referral):
     RequireScriptHash(toBeReferred)
     RequireScriptHash(referral)
+    Require(getReferral(toBeReferred) == False)
+    Require(toBeReferred == referral)
     Put(GetContext(), concatKey(PLAYER_REFERRAL_KEY, toBeReferred), referral)
     Notify(["addReferral", toBeReferred, referral])
+    return True
+
+def addMultiReferral(toBeReferredReferralList):
+    for toBeReferredReferral in toBeReferredReferralList:
+        toBeReferred = toBeReferredReferral[0]
+        referral = toBeReferredReferral[1]
+        RequireScriptHash(toBeReferred)
+        RequireScriptHash(referral)
+        Require(getReferral(toBeReferred) == False)
+        Require(toBeReferred == referral)
+        Put(GetContext(), concatKey(PLAYER_REFERRAL_KEY, toBeReferred), referral)
+    Notify(["addMultiReferral", toBeReferredReferralList])
     return True
 
 def addDividendToLuckyHolders(ongAmount):
     RequireWitness(Admin)
     luckySupply = getLuckySupply()
     if luckySupply == 0:
+        # Lucky supply is Zero, there is no Lucky.
         Notify(["noLucky"])
         return False
     profitPerLuckyToBeAdd = Div(Mul(ongAmount, Magnitude), getLuckySupply())
@@ -411,7 +438,6 @@ def endCurrentRound(explodePoint, salt, effectiveEscapeAcctPointList):
         # please wait for the bets end
         Notify(["Error", 102])
         return False
-    Notify(["endCurrentRound111"])
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), ROUND_EXPLODE_NUM_KEY), explodePoint)
     effectiveEscapeAcctPointOddsProfitList = _settleAccounts(currentRound, explodePoint, effectiveEscapeAcctPointList)
     Require(_closeRound(currentRound))
@@ -469,7 +495,7 @@ def migrateContract(code, needStorage, name, version, author, email, description
 ####################### Methods that only Admin can invoke End #######################
 
 ######################## Methods for Players Start ######################################
-def bet(account, ongAmount, referral):
+def bet(account, ongAmount):
     RequireWitness(account)
     currentRound = getCurrentRound()
     Require(getRoundStatus(currentRound) == STATUS_ON)
@@ -479,9 +505,6 @@ def bet(account, ongAmount, referral):
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), concatKey(ROUND_PLAYER_BET_BALANCE_KEY, account)), Add(getPlayerBetBalance(currentRound, account), ongAmount))
 
     updateDividend(account)
-
-    if _checkReferral(account) == False and len(referral) == 20 and account != referral:
-        _addReferral(account, referral)
 
     _referralLuckyBalanceToBeAdd = 0
     acctLuckyBalanceToBeAdd = Div(Mul(ongAmount, getLuckyToOngRate()), Magnitude)
@@ -562,7 +585,6 @@ def getRoundExplodePointHash(roundNumber):
     return Get(GetContext(), concatKey(concatKey(ROUND_PREFIX, roundNumber), ROUND_EXPLODE_NUM_HASH_KEY))
 
 def getRoundExplodePoint(roundNumber):
-          # Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), ROUND_EXPLODE_NUM_KEY), explodePoint)
     return Get(GetContext(), concatKey(concatKey(ROUND_PREFIX, roundNumber), ROUND_EXPLODE_NUM_KEY))
 
 def verifyRoundExplodePointIsRandom(roundNumber, salt):
