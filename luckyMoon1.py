@@ -137,11 +137,6 @@ def Sqrt(a):
         c = Div(Add(Div(a, c), c), 2)
     return c
 
-# block2=GetBlock(bytearray([228, 3, 21, 226, 47, 195, 11, 70, 72, 227, 84, 109, 51, 146, 115, 23, 247, 23, 93, 196, 200, 102, 234, 68, 48, 119, 121, 130, 64, 197, 224, 22]))
-# block_hash=bytearray([228, 3, 21, 226, 47, 195, 11, 70, 72, 227, 84, 109, 51, 146, 115, 23, 247, 23, 93, 196, 200, 102, 234, 68, 48, 119, 121, 130, 64, 197, 224, 22])
-# block2=GetBlock(block_hash)
-
-
 ONGAddress = bytearray(b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02')
 Admin = ToScriptHash('AQf4Mzu1YJrhz9f3aRkkwSm9n3qhXGSh4p')
 INIIT_KEY = "Init"
