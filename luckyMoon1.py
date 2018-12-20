@@ -627,7 +627,7 @@ def _settleAccounts(roundNumber, explodePoint, effectiveEscapeAcctPointList):
         account = effectiveEscapeAcctPoint[0]
         escapePoint = effectiveEscapeAcctPoint[1]
         # Require(escapePoint < explodePoint)
-        if escapePoint < explodePoint:
+        if escapePoint < explodePoint and escapePoint >= 100:
             odds = escapePoint
             betBalance = getPlayerBetBalance(roundNumber, account)
             ongBalanceForPlayerToBeAdd = Div(Mul(betBalance, odds), OddsMagnitude)
