@@ -438,6 +438,7 @@ def endCurrentRound(explodePoint, salt, effectiveEscapeAcctPointList):
     #     # please wait for the bets end
     #     Notify(["Error", 102])
     #     return False
+    Require(getRoundStatus(currentRound) == STATUS_ON)
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), ROUND_EXPLODE_NUM_KEY), explodePoint)
     effectiveEscapeAcctPointOddsProfitList = _settleAccounts(currentRound, explodePoint, effectiveEscapeAcctPointList)
     Require(_closeRound(currentRound))
@@ -452,6 +453,7 @@ def endCurrentRoundWithCost(explodePoint, effectiveEscapeAcctPointList):
     #     # Still in the punishment time, please wait for the punish to be ended.
     #     Notify(["Error", 103])
     #     return False
+    Require(getRoundStatus(currentRound) == STATUS_ON)
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), ROUND_EXPLODE_NUM_KEY), explodePoint)
     effectiveEscapeAcctPointOddsProfitList = _settleAccounts(currentRound, explodePoint, effectiveEscapeAcctPointList)
     Require( _closeRound(currentRound))
