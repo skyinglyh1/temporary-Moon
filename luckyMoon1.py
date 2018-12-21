@@ -428,14 +428,16 @@ def endCurrentRound(explodePoint, salt, effectiveEscapeAcctPointList):
     RequireWitness(Admin)
     currentRound = getCurrentRound()
     hash = sha256(explodePoint)^sha256(salt)
-    if hash != getRoundExplodePointHash(currentRound):
-        # the explodePoint and salt are wrong
-        Notify(["Error", 101])
-        return False
-    if getRoundBetStatus(currentRound):
-        # please wait for the bets end
-        Notify(["Error", 102])
-        return False
+    Require(hash == getRoundExplodePointHash(currentRound))
+    # if hash != getRoundExplodePointHash(currentRound):
+    #     # the explodePoint and salt are wrong
+    #     Notify(["Error", 101])
+    #     return False
+    Require(getRoundBetStatus(currentRound) == False)
+    # if getRoundBetStatus(currentRound):
+    #     # please wait for the bets end
+    #     Notify(["Error", 102])
+    #     return False
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), ROUND_EXPLODE_NUM_KEY), explodePoint)
     effectiveEscapeAcctPointOddsProfitList = _settleAccounts(currentRound, explodePoint, effectiveEscapeAcctPointList)
     Require(_closeRound(currentRound))
@@ -445,10 +447,11 @@ def endCurrentRound(explodePoint, salt, effectiveEscapeAcctPointList):
 def endCurrentRoundWithCost(explodePoint, effectiveEscapeAcctPointList):
     RequireWitness(Admin)
     currentRound = getCurrentRound()
-    if GetTime() < Add(3600, getRoundBetsEndTime(currentRound)):
-        # Still in the punishment time, please wait for the punish to be ended.
-        Notify(["Error", 103])
-        return False
+    Require(GetTime() >= Add(3600, getRoundBetsEndTime(currentRound)))
+    # if GetTime() < Add(3600, getRoundBetsEndTime(currentRound)):
+    #     # Still in the punishment time, please wait for the punish to be ended.
+    #     Notify(["Error", 103])
+    #     return False
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), ROUND_EXPLODE_NUM_KEY), explodePoint)
     effectiveEscapeAcctPointOddsProfitList = _settleAccounts(currentRound, explodePoint, effectiveEscapeAcctPointList)
     Require( _closeRound(currentRound))
@@ -498,9 +501,12 @@ def bet(account, ongAmount):
     currentRound = getCurrentRound()
     Require(getRoundStatus(currentRound) == STATUS_ON)
     Require(getRoundBetStatus(currentRound))
+    playerRoundBalance = getPlayerBetBalance(currentRound, account)
+    Require(not playerRoundBalance)
     Require(_transferONG(account, ContractAddress, ongAmount))
     Put(GetContext(), TOTAL_ONG_FOR_ADMIN, Add(getTotalOngForAdmin(), ongAmount))
-    Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), concatKey(ROUND_PLAYER_BET_BALANCE_KEY, account)), Add(getPlayerBetBalance(currentRound, account), ongAmount))
+
+    Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), concatKey(ROUND_PLAYER_BET_BALANCE_KEY, account)), ongAmount)
 
     updateDividend(account)
 
@@ -520,6 +526,7 @@ def bet(account, ongAmount):
 def withdraw(account):
     RequireWitness(account)
     ongAmountToBeWithdraw = getOngBalanceOf(account)
+    Require(ongAmountToBeWithdraw > 0)
     Require(_transferONGFromContact(account, ongAmountToBeWithdraw))
     Delete(GetContext(), concatKey(ONG_BALANCE_KEY, account))
     Notify(["withdraw", account, ongAmountToBeWithdraw])
