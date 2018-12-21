@@ -527,10 +527,14 @@ def bet(account, ongAmount):
 
 def withdraw(account):
     RequireWitness(account)
-    ongAmountToBeWithdraw = getOngBalanceOf(account)
+    ongBalance = getOngBalanceOf(account)
+    updateDividend(account)
+    dividendBalance = getDividendBalanceOf(account)
+    ongAmountToBeWithdraw = Add(ongBalance, dividendBalance)
     Require(ongAmountToBeWithdraw > 0)
     Require(_transferONGFromContact(account, ongAmountToBeWithdraw))
     Delete(GetContext(), concatKey(ONG_BALANCE_KEY, account))
+    Delete(GetContext(), concatKey(DIVIDEND_BALANCE_KEY, account))
     Notify(["withdraw", account, ongAmountToBeWithdraw])
     return True
 ######################## Methods for Players End ######################################
