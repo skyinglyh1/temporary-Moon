@@ -164,7 +164,7 @@ ONG_BALANCE_KEY = "P5"
 STATUS_ON = "RUNNING"
 STATUS_OFF = "END"
 
-BettingDuration = 200
+BettingDuration = 20
 ONGMagnitude = 1000000000
 LuckyDecimals = 9
 LuckyMagnitude = 1000000000
