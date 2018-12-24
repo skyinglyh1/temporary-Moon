@@ -278,6 +278,6 @@ def burn(account, amount):
     if acctBalance < amount:
         return False
     Put(ctx, concat(BALANCE_PREFIX, account), acctBalance - amount)
-    Put(ctx, TOTAL_AMOUNT, totalSupply() - amount)
+    Put(ctx, SUPPLY_KEY, totalSupply() - amount)
     TransferEvent(account, "", amount)
     return True
