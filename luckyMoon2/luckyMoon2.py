@@ -204,11 +204,10 @@ def Main(operation, args):
         toBeReferredReferralList = args[0]
         return addMultiReferral(toBeReferredReferralList)
     if operation == "startNewRound":
-        if len(args) != 2:
+        if len(args) != 1:
             return False
-        explodePoint = args[0]
-        salt = args[1]
-        return startNewRound(explodePoint, salt)
+        explodePointSaltHash = args[0]
+        return startNewRound(explodePointSaltHash)
     if operation == "endCurrentRound":
         if len(args) != 3:
             return False
@@ -383,8 +382,7 @@ def addMultiReferral(toBeReferredReferralList):
     Notify(["addMultiReferral", toBeReferredReferralList])
     return True
 
-
-def startNewRound(explodePoint, salt):
+def startNewRound(explodePointSaltHash):
     RequireWitness(Admin)
     currentRound = getCurrentRound()
     Require(getRoundStatus(currentRound) == STATUS_OFF)
@@ -392,13 +390,14 @@ def startNewRound(explodePoint, salt):
     # start new round
     nextRound = Add(currentRound, 1)
     Put(GetContext(), CURRET_ROUND_NUM_KEY, nextRound)
-    explodePointHash = sha256(explodePoint)^sha256(salt)
-    Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, nextRound), ROUND_EXPLODE_NUM_HASH_KEY), explodePointHash)
+    # explodePointHash = sha256(explodePoint)^sha256(salt)
+    Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, nextRound), ROUND_EXPLODE_NUM_HASH_KEY), explodePointSaltHash)
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, nextRound), ROUND_STATUS_KEY), STATUS_ON)
     now = GetTime()
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, nextRound), ROUND_END_BET_TIME_KEY), Add(now, BettingDuration))
-    Notify(["startNewRound", nextRound, now, explodePointHash])
+    Notify(["startNewRound", nextRound, now, explodePointSaltHash])
     return True
+
 
 def endCurrentRound(explodePoint, salt, effectiveEscapeAcctPointList):
     RequireWitness(Admin)
@@ -486,7 +485,6 @@ def bet(account, ongAmount):
 
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, currentRound), concatKey(ROUND_PLAYER_BET_BALANCE_KEY, account)), ongAmount)
 
-
     _referralLuckyBalanceToBeAdd = 0
     acctLuckyBalanceToBeAdd = Div(Mul(ongAmount, getLuckyToOngRate()), Magnitude)
     ############### Transfer Lucky TWO times to account and referral ###############
@@ -516,7 +514,6 @@ def bet(account, ongAmount):
     # res = DynamicAppCall(revesedContractAddress, "transferMulti", params)
     # Require(res)
 
-
     Notify(["bet", currentRound, account, ongAmount])
     return True
 
@@ -529,8 +526,9 @@ def withdraw(account):
     Notify(["withdraw", account, ongAmountToBeWithdraw])
     return True
 ######################## Methods for Players End ######################################
-################## Global Info Start #######################
 
+
+################## Global Info Start #######################
 def getTotalOngForAdmin():
     return Get(GetContext(), TOTAL_ONG_FOR_ADMIN)
 
