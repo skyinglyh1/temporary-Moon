@@ -659,6 +659,9 @@ def updateDividend(account):
     profitPerLuckyFrom = Get(GetContext(), concatKey(PROFIT_PER_LUCKY_FROM_KEY, account))
     unsharedProfitPerLucky = Sub(profitPerLucky, profitPerLuckyFrom)
     luckyBalance = getLuckyBalanceOf(account)
+    if luckyBalance == 0:
+        Put(GetContext(), concatKey(PROFIT_PER_LUCKY_FROM_KEY, account), profitPerLucky)
+        return True
     if unsharedProfitPerLucky > 0 and luckyBalance > 0:
         Put(GetContext(), concatKey(DIVIDEND_BALANCE_KEY, account), getDividendBalanceOf(account))
         Put(GetContext(), concatKey(PROFIT_PER_LUCKY_FROM_KEY, account), profitPerLucky)
