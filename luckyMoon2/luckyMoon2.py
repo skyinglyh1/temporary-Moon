@@ -164,7 +164,7 @@ ONG_BALANCE_KEY = "P5"
 STATUS_ON = "RUNNING"
 STATUS_OFF = "END"
 
-BettingDuration = 20
+BettingDuration = 200
 ONGMagnitude = 1000000000
 LuckyDecimals = 9
 LuckyMagnitude = 1000000000
@@ -489,19 +489,33 @@ def bet(account, ongAmount):
 
     _referralLuckyBalanceToBeAdd = 0
     acctLuckyBalanceToBeAdd = Div(Mul(ongAmount, getLuckyToOngRate()), Magnitude)
-    # transfer LUCKY to account
-    params  = [ContractAddress, account, acctLuckyBalanceToBeAdd]
-    revesedContractAddress = Get(GetContext(), LUCKY_CONTRACT_HASH_KEY)
-    res = DynamicAppCall(revesedContractAddress, "transfer", params)
-    Require(res)
+    ############### Transfer Lucky TWO times to account and referral ###############
+    # # transfer LUCKY to account
+    # params  = [ContractAddress, account, acctLuckyBalanceToBeAdd]
+    # revesedContractAddress = Get(GetContext(), LUCKY_CONTRACT_HASH_KEY)
+    # res = DynamicAppCall(revesedContractAddress, "transfer", params)
+    # Require(res)
+    # referral = getReferral(account)
+    # if len(referral) == 20:
+    #     # transfer LUCKY to referral
+    #     _referralLuckyBalanceToBeAdd = Div(Mul(acctLuckyBalanceToBeAdd, getReferralBonusPercentage()), 100)
+    #     params = [ContractAddress, referral, _referralLuckyBalanceToBeAdd]
+    #     res = DynamicAppCall(revesedContractAddress, "transfer", params)
+    #     Require(res)
 
+    ############### multiTransfer Lucky ONE time to account and referral ###############
+    revesedContractAddress = Get(GetContext(), LUCKY_CONTRACT_HASH_KEY)
+    params = []
+    params1 = [ContractAddress, account, acctLuckyBalanceToBeAdd]
+    params.append(params1)
     referral = getReferral(account)
     if len(referral) == 20:
-        # transfer LUCKY to referral
         _referralLuckyBalanceToBeAdd = Div(Mul(acctLuckyBalanceToBeAdd, getReferralBonusPercentage()), 100)
-        params = [ContractAddress, referral, _referralLuckyBalanceToBeAdd]
-        res = DynamicAppCall(revesedContractAddress, "transfer", params)
-        Require(res)
+        params2 = [ContractAddress, referral, _referralLuckyBalanceToBeAdd]
+        params.append(params2)
+    res = DynamicAppCall(revesedContractAddress, "transferMulti", params)
+    Require(res)
+
 
     Notify(["bet", currentRound, account, ongAmount])
     return True
