@@ -168,8 +168,8 @@ STATUS_OFF = "END"
 
 BettingDuration = 20
 ONGMagnitude = 1000000000
-LuckyDecimals = 8
-LuckyMagnitude = 100000000
+LuckyDecimals = 9
+LuckyMagnitude = 1000000000
 Magnitude = 1000000000000000000000000000000
 OddsMagnitude = 100
 
@@ -378,6 +378,7 @@ def addReferral(toBeReferred, referral):
     RequireScriptHash(referral)
     Require(not getReferral(toBeReferred))
     Require(toBeReferred != referral)
+    updateDividend(referral)
     Put(GetContext(), concatKey(PLAYER_REFERRAL_KEY, toBeReferred), referral)
     Notify(["addReferral", toBeReferred, referral])
     return True
@@ -515,11 +516,12 @@ def bet(account, ongAmount):
     _referralLuckyBalanceToBeAdd = 0
     acctLuckyBalanceToBeAdd = Div(Mul(ongAmount, getLuckyToOngRate()), Magnitude)
     Put(GetContext(), concatKey(LUCKY_BALANCE_KEY, account), Add(getLuckyBalanceOf(account), acctLuckyBalanceToBeAdd))
+    referral = getReferral(account)
 
-    if len(getReferral(account)) == 20:
+    if len(referral) == 20:
         _referralLuckyBalanceToBeAdd = Div(Mul(acctLuckyBalanceToBeAdd, getReferralBonusPercentage()), 100)
-        _referral = getReferral(account)
-        Put(GetContext(), concatKey(LUCKY_BALANCE_KEY, _referral), Add(getLuckyBalanceOf(_referral), _referralLuckyBalanceToBeAdd))
+        updateDividend(referral)
+        Put(GetContext(), concatKey(LUCKY_BALANCE_KEY, referral), Add(getLuckyBalanceOf(referral), _referralLuckyBalanceToBeAdd))
 
     Put(GetContext(), LUCKY_TOTAL_SUPPLY_KEY, Add(getLuckySupply(), Add(acctLuckyBalanceToBeAdd, _referralLuckyBalanceToBeAdd)))
     Notify(["bet", currentRound, account, ongAmount])
@@ -659,9 +661,12 @@ def updateDividend(account):
     profitPerLuckyFrom = Get(GetContext(), concatKey(PROFIT_PER_LUCKY_FROM_KEY, account))
     unsharedProfitPerLucky = Sub(profitPerLucky, profitPerLuckyFrom)
     luckyBalance = getLuckyBalanceOf(account)
-    if luckyBalance == 0:
+    if luckyBalance == 0 and unsharedProfitPerLucky > 0:
         Put(GetContext(), concatKey(PROFIT_PER_LUCKY_FROM_KEY, account), profitPerLucky)
         return True
+    # if unsharedProfitPerLucky == 0:
+    #     Put(GetContext(), concatKey(DIVIDEND_BALANCE_KEY, account), getDividendBalanceOf(account))
+    #     Put(GetContext(), concatKey(PROFIT_PER_LUCKY_FROM_KEY, account), profitPerLucky)
     if unsharedProfitPerLucky > 0 and luckyBalance > 0:
         Put(GetContext(), concatKey(DIVIDEND_BALANCE_KEY, account), getDividendBalanceOf(account))
         Put(GetContext(), concatKey(PROFIT_PER_LUCKY_FROM_KEY, account), profitPerLucky)
