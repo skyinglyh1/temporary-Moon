@@ -3,8 +3,8 @@ LuckyMoon Game
 """
 from boa.interop.Ontology.Contract import Migrate
 from boa.interop.System.Storage import GetContext, Get, Put, Delete
-from boa.interop.System.Runtime import CheckWitness, GetTime, Notify, Serialize, Deserialize
-from boa.interop.System.ExecutionEngine import GetExecutingScriptHash, GetCallingScriptHash, GetEntryScriptHash, GetScriptContainer
+from boa.interop.System.Runtime import CheckWitness, GetTime, Notify
+from boa.interop.System.ExecutionEngine import GetExecutingScriptHash, GetScriptContainer
 from boa.interop.Ontology.Native import Invoke
 from boa.interop.Ontology.Runtime import GetCurrentBlockHash
 from boa.builtins import ToScriptHash, concat, state, sha256
@@ -144,11 +144,11 @@ Admin = ToScriptHash('AQf4Mzu1YJrhz9f3aRkkwSm9n3qhXGSh4p')
 INIIT_KEY = "Init"
 
 TOTAL_ONG_FOR_ADMIN = "G1"
-LUCKY_TO_ONG_RATE_KEY = "G3"
-PROFIT_PER_LUCKY_KEY = "G4"
-ROUND_PREFIX = "G5"
-CURRET_ROUND_NUM_KEY = "G6"
-REFERRAL_BONUS_PERCENTAGE_KEY = "G8"
+LUCKY_TO_ONG_RATE_KEY = "G2"
+PROFIT_PER_LUCKY_KEY = "G3"
+ROUND_PREFIX = "G4"
+CURRET_ROUND_NUM_KEY = "G5"
+REFERRAL_BONUS_PERCENTAGE_KEY = "G6"
 
 ROUND_STATUS_KEY = "R1"
 ROUND_END_BET_TIME_KEY = "R2"
@@ -157,9 +157,8 @@ ROUND_EXPLODE_NUM_KEY = "R4"
 ROUND_PLAYER_BET_BALANCE_KEY = "R5"
 ROUND_PLAYER_ADDRESS_LIST_KEY = "R6"
 
-# PLAYER_REFERRAL_KEY + referral -> toBeReferred
 PLAYER_REFERRAL_KEY = "P1"
-ONG_BALANCE_KEY = "P5"
+ONG_BALANCE_KEY = "P2"
 
 STATUS_ON = "RUNNING"
 STATUS_OFF = "END"
@@ -315,7 +314,6 @@ def Main(operation, args):
             return False
         account = args[0]
         return getOngBalanceOf(account)
-
     if operation == "getPlayerBetBalance":
         if len(args) != 2:
             return False
@@ -472,9 +470,10 @@ def migrateContract(code, needStorage, name, version, author, email, description
         Require(res)
     res = Migrate(code, needStorage, name, version, author, email, description)
     Require(res)
-    Notify(["Migrate Contract successfully", Admin, GetTime()])
+    Notify(["Migrate Contract successfully"])
     return True
 ####################### Methods that only Admin can invoke End #######################
+
 
 ######################## Methods for Players Start ######################################
 def bet(account, ongAmount):
@@ -504,7 +503,6 @@ def bet(account, ongAmount):
         params = [ContractAddress, referral, _referralLuckyBalanceToBeAdd]
         res = DynamicAppCall(revesedContractAddress, "transfer", params)
         Require(res)
-
     ############### multiTransfer Lucky ONE time to account and referral ###############
     # revesedContractAddress = Get(GetContext(), LUCKY_CONTRACT_HASH_KEY)
     # params = []
@@ -517,7 +515,6 @@ def bet(account, ongAmount):
     #     params.append(params2)
     # res = DynamicAppCall(revesedContractAddress, "transferMulti", params)
     # Require(res)
-
     Notify(["bet", currentRound, account, ongAmount])
     return True
 
@@ -626,12 +623,6 @@ def _closeRound(roundNumber):
     Put(GetContext(), concatKey(concatKey(ROUND_PREFIX, roundNumber), ROUND_STATUS_KEY), STATUS_OFF)
     return True
 
-def _getRandomNumber(interval):
-    blockHash = GetCurrentBlockHash()
-    tx = GetScriptContainer()
-    txhash = GetTransactionHash(tx)
-    randomNumber = abs(blockHash ^ txhash) % Add(interval, 1)
-    return randomNumber
 
 def _transferONG(fromAcct, toAcct, amount):
     """
