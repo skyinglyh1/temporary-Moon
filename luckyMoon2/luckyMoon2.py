@@ -599,6 +599,7 @@ def getPlayerBetBalance(roundNumber, account):
 
 ######################### Utility Methods Start #########################
 def _settleAccounts(roundNumber, explodePoint, effectiveEscapeAcctPointList):
+    Notify(["settleAccounts", roundNumber, explodePoint, effectiveEscapeAcctPointList])
     effectiveEscapeAcctPointOddsProfitList = []
     totalOngForAdminToBeSub = 0
     for effectiveEscapeAcctPoint in effectiveEscapeAcctPointList:
@@ -616,7 +617,9 @@ def _settleAccounts(roundNumber, explodePoint, effectiveEscapeAcctPointList):
             effectiveEscapeAcctPointOddsProfit.append(Sub(ongBalanceForPlayerToBeAdd, betBalance))
             effectiveEscapeAcctPointOddsProfitList.append(effectiveEscapeAcctPointOddsProfit)
             Put(GetContext(), concatKey(ONG_BALANCE_KEY, account), Add(getOngBalanceOf(account), ongBalanceForPlayerToBeAdd))
+    Notify(["settleAccounts", getTotalOngForAdmin(), totalOngForAdminToBeSub])
     Put(GetContext(), TOTAL_ONG_FOR_ADMIN, Sub(getTotalOngForAdmin(), totalOngForAdminToBeSub))
+
     return effectiveEscapeAcctPointOddsProfitList
 
 def _closeRound(roundNumber):
