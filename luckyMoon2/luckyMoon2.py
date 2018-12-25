@@ -242,8 +242,8 @@ def Main(operation, args):
         author = args[4]
         email = args[5]
         description = args[6]
-        newContractHash = args[7]
-        return migrateContract(code, needStorage, name, version, author, email, description, newContractHash)
+        newReversedContractHash = args[7]
+        return migrateContract(code, needStorage, name, version, author, email, description, newReversedContractHash)
     ######################## for Admin to invoke End ###############
     ######################## for Player to invoke Begin ###############
     if operation == "bet":
@@ -456,20 +456,24 @@ def adminWithdraw(toAcct, ongAmount):
     Notify(["adminWithdraw", toAcct, ongAmount])
     return True
 
-def migrateContract(code, needStorage, name, version, author, email, description, newContractHash):
+def migrateContract(code, needStorage, name, version, author, email, description, newReversedContractHash):
     RequireWitness(Admin)
     param = state(ContractAddress)
     totalOngAmount = Invoke(0, ONGAddress, 'balanceOf', param)
-    res = _transferONGFromContact(newContractHash, totalOngAmount)
-    Require(res)
-    if res == True:
-        res = Migrate(code, needStorage, name, version, author, email, description)
+    if totalOngAmount > 0:
+        res = _transferONGFromContact(newReversedContractHash, totalOngAmount)
         Require(res)
-        Notify(["Migrate Contract successfully", Admin, GetTime()])
-        return True
-    else:
-        Notify(["MigrateContractError", "transfer ONG to new contract error"])
-        return False
+    revesedContractAddress = Get(GetContext(), LUCKY_CONTRACT_HASH_KEY)
+    params = [ContractAddress]
+    totalLuckyAmount = DynamicAppCall(revesedContractAddress, "balanceOf", params)
+    if totalLuckyAmount > 0:
+        params = [ContractAddress, newReversedContractHash, totalLuckyAmount]
+        res = DynamicAppCall(revesedContractAddress, "transfer", params)
+        Require(res)
+    res = Migrate(code, needStorage, name, version, author, email, description)
+    Require(res)
+    Notify(["Migrate Contract successfully", Admin, GetTime()])
+    return True
 ####################### Methods that only Admin can invoke End #######################
 
 ######################## Methods for Players Start ######################################
